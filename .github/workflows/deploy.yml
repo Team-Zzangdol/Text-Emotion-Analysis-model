@@ -1,0 +1,43 @@
+name: Deploy to AWS Lambda
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          token: ${{ secrets.GH_PAT }}
+
+      - name: Login to Amazon ECR
+        env:
+          AWS_REGION: 'ap-northeast-2'
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+        run: |
+          aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+
+      - name: Build, Tag, and Push Docker image to Amazon ECR
+        env:
+          AWS_REGION: 'ap-northeast-2'
+          ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+          GH_PAT: ${{ secrets.GH_PAT }}
+        run: |
+          docker build --no-cache --build-arg GITHUB_TOKEN=$GH_PAT -t text-emotion-analysis-model .
+          docker tag text-emotion-analysis-model:latest $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/text-emotion-analysis-model:latest
+          docker push $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/text-emotion-analysis-model:latest
+
+      - name: Update AWS Lambda function
+        env:
+          AWS_REGION: 'ap-northeast-2'
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+        run: |
+          aws lambda update-function-code --function-name text-emotion-analysis-model --image-uri $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/text-emotion-analysis-model:latest --region $AWS_REGION

@@ -4,7 +4,11 @@ RUN /var/lang/bin/python3.8 -m pip install --upgrade pip
 
 RUN yum install git -y
 
-RUN git clone https://github.com/Team-Zzangdol/Text-Emotion-Analysis-model
+ARG GITHUB_TOKEN
+RUN echo "machine github.com login $GITHUB_TOKEN" > ~/.netrc && \
+    chmod 600 ~/.netrc && \
+    git clone https://github.com/Team-Zzangdol/Text-Emotion-Analysis-model && \
+    rm -f ~/.netrc
 
 RUN pip install -r Text-Emotion-Analysis-model/requirements.txt
 
